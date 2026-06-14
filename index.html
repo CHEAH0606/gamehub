@@ -5,8 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>POINT INVADERS — Arcade Hub 🎮</title>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -215,6 +214,22 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
   .iframe-score-area{flex-wrap:wrap}
 }
 @media(max-width:400px){.games-grid{grid-template-columns:1fr}}
+
+/* ── TETRIS SCREEN ── */
+#tetris-screen{justify-content:flex-start;padding-top:18px;overflow-y:auto}
+.tetris-hdr{display:flex;align-items:center;justify-content:space-between;width:100%;max-width:700px;margin-bottom:12px;flex-shrink:0}
+.tetris-body{display:flex;gap:20px;align-items:flex-start;justify-content:center;width:100%}
+.tetris-sidebar{display:flex;flex-direction:column;align-items:center;gap:12px;min-width:120px}
+.t-panel{background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:12px 16px;text-align:center;width:100%}
+.t-panel h3{font-family:var(--fd);font-size:.5rem;color:var(--dim);letter-spacing:.15em;text-transform:uppercase;margin-bottom:6px}
+.t-panel .t-val{font-family:var(--fd);font-size:1.4rem;font-weight:900;color:var(--pink)}
+#t-canvas{border:2px solid var(--border);border-radius:6px;background:#0d0d11;display:block}
+#t-next-canvas{border:2px solid var(--border);border-radius:6px;background:#0d0d11;display:block}
+#t-start-btn{font-family:var(--fd);font-size:.6rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:10px 20px;border:none;border-radius:8px;cursor:pointer;background:linear-gradient(135deg,var(--orange),var(--pink));color:#fff;width:100%}
+#t-start-btn:hover{opacity:.85}
+.t-leaderboard{list-style:none;padding:0;margin:0;font-size:.7rem;text-align:left;width:100%}
+.t-leaderboard li{padding:3px 0;border-bottom:1px dashed rgba(255,255,255,.1);color:var(--dim)}
+.tetris-tip{font-size:.65rem;color:var(--dimmer);text-align:center;margin-top:4px}
 </style>
 </head>
 <body>
@@ -351,6 +366,40 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
   </div>
 </div>
 
+<!-- ══════════ TETRIS SCREEN ══════════ -->
+<div class="screen" id="tetris-screen">
+  <div class="tetris-hdr">
+    <button class="btn btn-secondary btn-sm" id="t-btn-quit">← Hub</button>
+    <div class="g-title" style="font-family:var(--fd);font-size:.95rem;font-weight:700">🟧 CYBERPUNK TETRIS</div>
+    <div></div>
+  </div>
+  <div class="tetris-body">
+    <div class="tetris-sidebar">
+      <div class="t-panel">
+        <h3>Score</h3>
+        <div class="t-val" id="t-score">0</div>
+      </div>
+      <div class="t-panel">
+        <h3>Level</h3>
+        <div class="t-val" id="t-level">1</div>
+      </div>
+      <div class="t-panel">
+        <h3>Next</h3>
+        <canvas id="t-next-canvas" width="80" height="80"></canvas>
+      </div>
+      <button id="t-start-btn">▶ START</button>
+      <div class="tetris-tip">← → Move &nbsp;|&nbsp; ↑/Q Rotate<br>↓ Soft Drop &nbsp;|&nbsp; Space Hard Drop</div>
+    </div>
+    <canvas id="t-canvas" width="240" height="480"></canvas>
+    <div class="tetris-sidebar">
+      <div class="t-panel" style="width:120px">
+        <h3>🏆 Top Scores</h3>
+        <ul class="t-leaderboard" id="t-leaderboard"></ul>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ══════════ IFRAME OVERLAY ══════════ -->
 <div id="iframe-ov">
   <div class="iframe-bar">
@@ -366,21 +415,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 </div>
 
 <script>
-// ════════════════════════════════════════════
-//  🔥 FIREBASE — replace with YOUR config!
-//  Firebase Console → Project Settings → Web App
-// ════════════════════════════════════════════
-const FB = {
-  apiKey:            "YOUR_API_KEY",
-  authDomain:        "YOUR_PROJECT.firebaseapp.com",
-  projectId:         "YOUR_PROJECT_ID",
-  storageBucket:     "YOUR_PROJECT.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId:             "YOUR_APP_ID"
-};
-let auth = null, db = null;
-try { firebase.initializeApp(FB); db = firebase.firestore(); }
-catch(e) { console.warn('Firebase not configured yet:', e.message); }
+let db = null;
 
 // ════════════════════════════════════════════
 //  🌌 PARTICLE BACKGROUND
@@ -408,7 +443,7 @@ const META={
   reaction:{name:'REACTION TIME',  emoji:'⚡',maxPts:300},
   math:    {name:'MATH BLITZ',     emoji:'🔢',maxPts:400},
   dodge:   {name:'DODGE',          emoji:'🚀',maxPts:600},
-  tetris:  {name:'CYBERPUNK TETRIS',emoji:'🟧',url:'index.html'},
+  tetris:  {name:'CYBERPUNK TETRIS',emoji:'🟧',maxPts:500},
   invaders:{name:'NEON NEBULA',    emoji:'👾',url:'https://cat9748912-cpu.github.io/Neon-Nebula-Overdrive-edition/'}
 };
 
@@ -453,7 +488,8 @@ function enterHub(){
 document.querySelectorAll('.game-card').forEach(card=>{
   card.addEventListener('click',()=>{
     const gid=card.dataset.game;
-    if(gid==='tetris'||gid==='invaders'){openIframe(gid)}
+    if(gid==='invaders'){openIframe(gid)}
+    else if(gid==='tetris'){openTetris()}
     else{curGame=gid;document.getElementById('g-title').textContent=META[gid].name;showScreen('game-screen');prepGame(gid)}
   });
 });
@@ -496,18 +532,8 @@ function showResults(gid,pts,bd){
 }
 
 async function saveScore(gid,pts){
-  if(!db||!user)return;
-  try{
-    await db.runTransaction(async tx=>{
-      const ref=db.collection('players').doc(user.uid);
-      const doc=await tx.get(ref);
-      const d=doc.exists?doc.data():{totalPoints:0,gamesPlayed:0,highScores:{}};
-      const hs=d.highScores||{};
-      tx.set(ref,{username:user.username,totalPoints:(d.totalPoints||0)+pts,gamesPlayed:(d.gamesPlayed||0)+1,highScores:{...hs,[gid]:Math.max(hs[gid]||0,pts)},lastPlayed:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
-    });
-    if(user)user.totalPoints=(user.totalPoints||0)+pts;
-    toast(`✅ +${pts} pts saved!`);
-  }catch(e){toast('⚠️ Score not saved');console.error(e)}
+  if(user)user.totalPoints=(user.totalPoints||0)+pts;
+  toast(`✅ +${pts} pts!`);
 }
 
 // ════════════════════════════════════════════
@@ -802,24 +828,190 @@ document.getElementById('btn-iframe-submit').onclick=async()=>{
 // ════════════════════════════════════════════
 async function loadLeaderboard(){
   const panel=document.getElementById('lb-panel');
-  if(!db){panel.innerHTML='<div class="lb-empty">⚠️ Add Firebase config to enable leaderboard</div>';return}
-  panel.innerHTML='<div class="lb-empty">Loading...</div>';
-  try{
-    const snap=await db.collection('players').orderBy('totalPoints','desc').limit(20).get();
-    if(snap.empty){panel.innerHTML='<div class="lb-empty">No players yet — be first!</div>';return}
-    const medals=['🥇','🥈','🥉'];
-    panel.innerHTML='<div class="lb-title">🏆 TOP PLAYERS</div>';
-    snap.docs.forEach((doc,i)=>{
-      const d=doc.data(),isMe=user&&doc.id===user.uid;
-      const cls=isMe?'me':i===0?'r1':i===1?'r2':i===2?'r3':'';
-      const row=document.createElement('div');row.className=`lb-row ${cls}`;
-      row.innerHTML=`<div class="lb-rank">${medals[i]||'#'+(i+1)}</div><div class="lb-name">${esc(d.username)}${isMe?' ← You':''}</div><div class="lb-score">${(d.totalPoints||0).toLocaleString()} PTS</div>`;
-      panel.appendChild(row);
-    });
-  }catch(e){panel.innerHTML='<div class="lb-empty">⚠️ Error loading scores</div>';console.error(e)}
+  panel.innerHTML='<div class="lb-empty">Leaderboard disabled</div>';
 }
 
 const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+// ════════════════════════════════════════════
+//  🟧 TETRIS GAME
+// ════════════════════════════════════════════
+let tGameOver=true, tDropCounter=0, tDropInterval=600, tLastTime=0, tAnimFrame=null, tNextPiece=null;
+const tArena=createTMatrix(12,24);
+const tPlayer={pos:{x:0,y:0},matrix:null,score:0,level:1,linesCleared:0};
+
+const TCOLORS=[null,'#ff007f','#00f0ff','#ffbc00','#9d4edd','#39ff14','#ff5e00','#001eff'];
+
+function createTMatrix(w,h){const m=[];let r=h;while(r--)m.push(new Array(w).fill(0));return m;}
+
+function createTPiece(type){
+  if(type==='T')return[[0,1,0],[1,1,1],[0,0,0]];
+  if(type==='I')return[[0,2,0,0],[0,2,0,0],[0,2,0,0],[0,2,0,0]];
+  if(type==='O')return[[3,3],[3,3]];
+  if(type==='Z')return[[4,4,0],[0,4,4],[0,0,0]];
+  if(type==='S')return[[0,5,5],[5,5,0],[0,0,0]];
+  if(type==='J')return[[0,6,0],[0,6,0],[6,6,0]];
+  if(type==='L')return[[0,7,0],[0,7,0],[0,7,7]];
+}
+
+function tCollide(arena,player){
+  const[m,o]=[player.matrix,player.pos];
+  for(let y=0;y<m.length;++y)for(let x=0;x<m[y].length;++x)
+    if(m[y][x]!==0&&(arena[y+o.y]&&arena[y+o.y][x+o.x])!==0)return true;
+  return false;
+}
+
+function tMerge(arena,player){
+  player.matrix.forEach((row,y)=>row.forEach((val,x)=>{if(val!==0)arena[y+player.pos.y][x+player.pos.x]=val;}));
+}
+
+function tDrawMatrix(matrix,offset,ctx,scale){
+  matrix.forEach((row,y)=>row.forEach((val,x)=>{
+    if(val!==0){
+      ctx.fillStyle=TCOLORS[val];
+      ctx.fillRect((x+offset.x)*scale,(y+offset.y)*scale,scale,scale);
+      ctx.strokeStyle='#0d0d11';ctx.lineWidth=1.5;
+      ctx.strokeRect((x+offset.x)*scale,(y+offset.y)*scale,scale,scale);
+    }
+  }));
+}
+
+function tSweep(){
+  let rowCount=1;
+  outer:for(let y=tArena.length-1;y>0;--y){
+    for(let x=0;x<tArena[y].length;++x)if(tArena[y][x]===0)continue outer;
+    const row=tArena.splice(y,1)[0].fill(0);tArena.unshift(row);++y;
+    tPlayer.score+=rowCount*10;tPlayer.linesCleared++;rowCount*=2;
+    if(tPlayer.linesCleared%10===0&&tPlayer.level<300){
+      tPlayer.level++;tDropInterval=Math.max(50,600*Math.pow(0.85,tPlayer.level-1));
+    }
+  }
+}
+
+function tDraw(){
+  const canvas=document.getElementById('t-canvas');
+  const ctx=canvas.getContext('2d');
+  const scale=20;
+  ctx.fillStyle='#0d0d11';ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.strokeStyle='rgba(255,255,255,0.03)';ctx.lineWidth=0.5;
+  for(let i=0;i<12;i++){ctx.beginPath();ctx.moveTo(i*scale,0);ctx.lineTo(i*scale,canvas.height);ctx.stroke();}
+  for(let i=0;i<24;i++){ctx.beginPath();ctx.moveTo(0,i*scale);ctx.lineTo(canvas.width,i*scale);ctx.stroke();}
+  tDrawMatrix(tArena,{x:0,y:0},ctx,scale);
+  if(tPlayer.matrix)tDrawMatrix(tPlayer.matrix,tPlayer.pos,ctx,scale);
+
+  const nc=document.getElementById('t-next-canvas');
+  const nctx=nc.getContext('2d');
+  nctx.fillStyle='#0d0d11';nctx.fillRect(0,0,nc.width,nc.height);
+  if(tNextPiece){
+    const ox=(4-tNextPiece[0].length)/2,oy=(4-tNextPiece.length)/2;
+    tDrawMatrix(tNextPiece,{x:ox,y:oy},nctx,20);
+  }
+}
+
+function tUpdate(time=0){
+  if(tGameOver)return;
+  const dt=time-tLastTime;tLastTime=time;
+  tDropCounter+=dt;
+  if(tDropCounter>tDropInterval)tPlayerDrop();
+  tDraw();
+  document.getElementById('t-score').textContent=tPlayer.score;
+  document.getElementById('t-level').textContent=tPlayer.level;
+  tAnimFrame=requestAnimationFrame(tUpdate);
+}
+
+function tPlayerDrop(){
+  tPlayer.pos.y++;
+  if(tCollide(tArena,tPlayer)){tPlayer.pos.y--;tMerge(tArena,tPlayer);tPlayerReset();tSweep();}
+  tDropCounter=0;
+}
+
+function tHardDrop(){
+  while(!tCollide(tArena,tPlayer))tPlayer.pos.y++;
+  tPlayer.pos.y--;tMerge(tArena,tPlayer);tPlayerReset();tSweep();tDropCounter=0;
+}
+
+function tMove(dir){tPlayer.pos.x+=dir;if(tCollide(tArena,tPlayer))tPlayer.pos.x-=dir;}
+
+function tPlayerReset(){
+  const pieces='ILJSZOT';
+  if(!tNextPiece){
+    tPlayer.matrix=createTPiece(pieces[pieces.length*Math.random()|0]);
+    tNextPiece=createTPiece(pieces[pieces.length*Math.random()|0]);
+  }else{tPlayer.matrix=tNextPiece;tNextPiece=createTPiece(pieces[pieces.length*Math.random()|0]);}
+  tPlayer.pos.y=0;
+  tPlayer.pos.x=(tArena[0].length/2|0)-(tPlayer.matrix[0].length/2|0);
+  if(tCollide(tArena,tPlayer)){tGameOver=true;tHandleGameOver();}
+}
+
+function tRotate(matrix,dir){
+  for(let y=0;y<matrix.length;++y)for(let x=0;x<y;++x)[matrix[x][y],matrix[y][x]]=[matrix[y][x],matrix[x][y]];
+  if(dir>0)matrix.forEach(row=>row.reverse());else matrix.reverse();
+}
+
+function tPlayerRotate(dir){
+  const pos=tPlayer.pos.x;let offset=1;
+  tRotate(tPlayer.matrix,dir);
+  while(tCollide(tArena,tPlayer)){
+    tPlayer.pos.x+=offset;offset=-(offset+(offset>0?1:-1));
+    if(offset>tPlayer.matrix[0].length){tRotate(tPlayer.matrix,-dir);tPlayer.pos.x=pos;return;}
+  }
+}
+
+function tHandleGameOver(){
+  if(tAnimFrame){cancelAnimationFrame(tAnimFrame);tAnimFrame=null;}
+  const name=prompt(`Grid Overrun! Score: ${tPlayer.score}\nEnter your tag:`) ||'Anon';
+  tSaveScore(name,tPlayer.score,tPlayer.level);
+  document.getElementById('t-start-btn').textContent='▶ PLAY AGAIN';
+}
+
+function tSaveScore(name,score,level){
+  const scores=JSON.parse(localStorage.getItem('tScores')||'[]');
+  scores.push({name,score,level});
+  scores.sort((a,b)=>b.score-a.score);
+  localStorage.setItem('tScores',JSON.stringify(scores.slice(0,5)));
+  tLoadLeaderboard();
+}
+
+function tLoadLeaderboard(){
+  const scores=JSON.parse(localStorage.getItem('tScores')||'[]');
+  const ul=document.getElementById('t-leaderboard');ul.innerHTML='';
+  if(!scores.length){ul.innerHTML='<li style="color:var(--dimmer)">No scores yet</li>';return;}
+  scores.forEach(e=>{const li=document.createElement('li');li.textContent=`${e.name.substring(0,8).toUpperCase()}: ${e.score}`;ul.appendChild(li);});
+}
+
+function openTetris(){
+  showScreen('tetris-screen');
+  tLoadLeaderboard();
+  document.getElementById('t-start-btn').textContent='▶ START';
+  tDraw();
+}
+
+document.getElementById('t-btn-quit').onclick=()=>{
+  tGameOver=true;
+  if(tAnimFrame){cancelAnimationFrame(tAnimFrame);tAnimFrame=null;}
+  enterHub();
+};
+
+document.getElementById('t-start-btn').onclick=()=>{
+  tArena.forEach(row=>row.fill(0));
+  tPlayer.score=0;tPlayer.level=1;tPlayer.linesCleared=0;
+  tDropInterval=600;tGameOver=false;tNextPiece=null;tDropCounter=0;
+  document.getElementById('t-score').textContent='0';
+  document.getElementById('t-level').textContent='1';
+  if(tAnimFrame){cancelAnimationFrame(tAnimFrame);tAnimFrame=null;}
+  tPlayerReset();tLastTime=0;tUpdate();
+};
+
+document.addEventListener('keydown',e=>{
+  if(document.getElementById('tetris-screen').classList.contains('active')&&!tGameOver){
+    if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key))e.preventDefault();
+    if(e.key==='ArrowLeft')tMove(-1);
+    else if(e.key==='ArrowRight')tMove(1);
+    else if(e.key==='ArrowDown')tPlayerDrop();
+    else if(e.key==='ArrowUp'||e.key==='q')tPlayerRotate(1);
+    else if(e.key===' ')tHardDrop();
+  }
+});
 
 // Boot directly into hub
 enterHub();
