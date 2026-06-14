@@ -6,7 +6,6 @@
 <title>POINT INVADERS — Arcade Hub 🎮</title>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -48,14 +47,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .input-label{display:block;font-size:.7rem;font-weight:600;color:var(--dim);letter-spacing:.12em;text-transform:uppercase;margin-bottom:6px;font-family:var(--fd)}
 .field{margin-bottom:14px}
 
-/* ── AUTH SCREEN ── */
-#auth-screen .wrap{width:100%;max-width:400px;text-align:center}
-.auth-icon{font-size:4rem;display:block;margin-bottom:16px;animation:float 3s ease-in-out infinite}
-@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-14px)}}
-.auth-tabs{display:flex;gap:8px;margin-bottom:22px}
-.auth-tab{flex:1;font-family:var(--fd);font-size:.65rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:10px;background:var(--s2);border:1px solid var(--border);border-radius:8px;color:var(--dim);cursor:pointer;transition:all .2s}
-.auth-tab.active{background:rgba(0,245,255,.1);border-color:var(--cyan);color:var(--cyan)}
-.auth-err{min-height:20px;font-size:.8rem;color:var(--pink);font-weight:600;margin-top:10px;text-align:center}
+
 
 /* ── HUB SCREEN ── */
 #hub-screen{justify-content:flex-start;padding-top:20px}
@@ -231,36 +223,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 <div id="cd-ov"><div id="cd-num">3</div></div>
 <div id="toast"></div>
 
-<!-- ══════════ AUTH SCREEN ══════════ -->
-<div class="screen active" id="auth-screen">
-  <div class="wrap">
-    <span class="auth-icon">🎮</span>
-    <div class="logo">POINT INVADERS</div>
-    <div class="tagline">Arcade Hub · Play · Compete · Dominate</div>
-    <br>
-    <div class="card">
-      <div class="auth-tabs">
-        <button class="auth-tab active" id="tab-login">Sign In</button>
-        <button class="auth-tab" id="tab-signup">Sign Up</button>
-      </div>
-      <div id="form-login">
-        <div class="field"><label class="input-label">Email</label><input class="input" type="email" id="l-email" placeholder="you@email.com" autocomplete="email"></div>
-        <div class="field"><label class="input-label">Password</label><input class="input" type="password" id="l-pass" placeholder="••••••••" autocomplete="current-password"></div>
-        <button class="btn btn-primary btn-full btn-lg" id="btn-login">Launch →</button>
-      </div>
-      <div id="form-signup" style="display:none">
-        <div class="field"><label class="input-label">Username</label><input class="input" type="text" id="s-name" placeholder="CoolPlayer99" maxlength="20"></div>
-        <div class="field"><label class="input-label">Email</label><input class="input" type="email" id="s-email" placeholder="you@email.com" autocomplete="email"></div>
-        <div class="field"><label class="input-label">Password (min 6)</label><input class="input" type="password" id="s-pass" placeholder="••••••••"></div>
-        <button class="btn btn-primary btn-full btn-lg" id="btn-signup">Create Account →</button>
-      </div>
-      <div class="auth-err" id="auth-err"></div>
-    </div>
-  </div>
-</div>
-
 <!-- ══════════ HUB SCREEN ══════════ -->
-<div class="screen" id="hub-screen">
+<div class="screen active" id="hub-screen">
   <div class="hub-bar">
     <div class="hub-logo-sm">⚡ POINT INVADERS</div>
     <div class="hub-right">
@@ -415,7 +379,7 @@ const FB = {
   appId:             "YOUR_APP_ID"
 };
 let auth = null, db = null;
-try { firebase.initializeApp(FB); auth = firebase.auth(); db = firebase.firestore(); }
+try { firebase.initializeApp(FB); db = firebase.firestore(); }
 catch(e) { console.warn('Firebase not configured yet:', e.message); }
 
 // ════════════════════════════════════════════
@@ -435,6 +399,8 @@ catch(e) { console.warn('Firebase not configured yet:', e.message); }
 //  📦 GLOBAL STATE
 // ════════════════════════════════════════════
 let user=null, curGame=null, curIfGame=null, gTimer=null, dodgeAF=null;
+// Default guest user — no login required
+user = {uid: 'guest', username: 'PLAYER', totalPoints: 0, gamesPlayed: 0};
 
 const META={
   click:   {name:'CLICK FRENZY',   emoji:'🖱️',maxPts:500},
@@ -476,70 +442,7 @@ const countdown=cb=>{
 };
 
 // ════════════════════════════════════════════
-//  🔐 AUTH
-// ════════════════════════════════════════════
-const setErr=msg=>document.getElementById('auth-err').textContent=msg;
-
-document.getElementById('tab-login').onclick=()=>{
-  document.getElementById('tab-login').classList.add('active');
-  document.getElementById('tab-signup').classList.remove('active');
-  document.getElementById('form-login').style.display='';
-  document.getElementById('form-signup').style.display='none';
-  setErr('');
-};
-document.getElementById('tab-signup').onclick=()=>{
-  document.getElementById('tab-signup').classList.add('active');
-  document.getElementById('tab-login').classList.remove('active');
-  document.getElementById('form-signup').style.display='';
-  document.getElementById('form-login').style.display='none';
-  setErr('');
-};
-
-document.getElementById('btn-login').onclick=async()=>{
-  if(!auth){toast('⚠️ Firebase not configured');return}
-  const email=document.getElementById('l-email').value.trim();
-  const pass=document.getElementById('l-pass').value;
-  if(!email||!pass){setErr('Please fill in all fields.');return}
-  try{const c=await auth.signInWithEmailAndPassword(email,pass);await loadUser(c.user.uid)}
-  catch(e){setErr(fErr(e.code))}
-};
-
-document.getElementById('btn-signup').onclick=async()=>{
-  if(!auth){toast('⚠️ Firebase not configured');return}
-  const name=document.getElementById('s-name').value.trim();
-  const email=document.getElementById('s-email').value.trim();
-  const pass=document.getElementById('s-pass').value;
-  if(!name||!email||!pass){setErr('Please fill in all fields.');return}
-  if(!/^[a-zA-Z0-9_-]{2,20}$/.test(name)){setErr('Username: 2-20 chars, letters/numbers/_-');return}
-  try{
-    const c=await auth.createUserWithEmailAndPassword(email,pass);
-    await db.collection('players').doc(c.user.uid).set({username:name,totalPoints:0,gamesPlayed:0,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
-    await loadUser(c.user.uid);
-  }catch(e){setErr(fErr(e.code))}
-};
-
-['l-pass','s-pass'].forEach(id=>document.getElementById(id).addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById(id==='l-pass'?'btn-login':'btn-signup').click()}));
-
-const fErr=c=>({'auth/email-already-in-use':'Email already in use.','auth/wrong-password':'Incorrect password.','auth/user-not-found':'No account found.','auth/weak-password':'Password must be 6+ characters.','auth/invalid-email':'Invalid email.','auth/invalid-credential':'Email or password is incorrect.'}[c]||'Something went wrong. Try again.');
-
-async function loadUser(uid){
-  if(!db)return;
-  const doc=await db.collection('players').doc(uid).get();
-  const data=doc.exists?doc.data():{username:'Player',totalPoints:0,gamesPlayed:0};
-  user={uid,...data};
-  enterHub();
-}
-
-if(auth)auth.onAuthStateChanged(async u=>{if(u&&!user)await loadUser(u.uid)});
-
-document.getElementById('btn-logout').onclick=()=>{
-  if(auth)auth.signOut();
-  user=null;showScreen('auth-screen');toast('👋 See you next time!');
-};
-
-// ════════════════════════════════════════════
-//  🏠 HUB
-// ════════════════════════════════════════════
+//  🏠 HUB// ════════════════════════════════════════════
 function enterHub(){
   document.getElementById('h-uname').textContent=user.username;
   document.getElementById('h-pts').textContent=`🏆 ${(user.totalPoints||0).toLocaleString()} PTS`;
@@ -918,8 +821,8 @@ async function loadLeaderboard(){
 
 const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
-// ── BOOT ──
-showScreen('auth-screen');
+// Boot directly into hub
+enterHub();
 </script>
 </body>
 </html>
